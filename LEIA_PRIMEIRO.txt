@@ -1,0 +1,70 @@
+=========================================================
+     SISTEMA DISCIPLINAR - ESCOLA CIVICO MILITAR
+=========================================================
+
+OLA! BEM-VINDO AO SISTEMA!
+
+Este sistema foi criado para controlar:
+- Alunos da escola
+- Ocorrencias disciplinares  
+- Faltas dos alunos
+- Graficos e relatorios
+
+=========================================================
+COMO USAR - SUPER FACIL!
+=========================================================
+
+OPCAO 1 - MAIS FACIL (RECOMENDADO):
+------------------------------------
+1. Clique duas vezes em: SUPER_INSTALADOR_COMPLETO.bat
+2. Siga as instrucoes na tela
+3. Pronto! O sistema vai abrir sozinho!
+
+
+OPCAO 2 - PASSO A PASSO:
+-------------------------
+1. Primeiro: INSTALAR_SISTEMA.bat (so na primeira vez)
+2. Segundo: CRIAR_BANCO_DADOS.bat (so na primeira vez)  
+3. Sempre que quiser usar: INICIAR_SISTEMA.bat
+4. Para parar: PARAR_SISTEMA.bat
+
+
+=========================================================
+ARQUIVOS IMPORTANTES:
+=========================================================
+
+SUPER_INSTALADOR_COMPLETO.bat -> Faz tudo automatico!
+INSTALAR_SISTEMA.bat ---------> Instala as dependencias
+CRIAR_BANCO_DADOS.bat --------> Cria o banco de dados
+INICIAR_SISTEMA.bat ----------> Liga o sistema
+PARAR_SISTEMA.bat ------------> Desliga o sistema
+
+=========================================================
+PRECISA TER INSTALADO NO COMPUTADOR:
+=========================================================
+
+1. Node.js - Baixe em: https://nodejs.org
+   (Escolha o botao verde "LTS")
+
+2. PostgreSQL - Baixe em: https://www.postgresql.org
+   (Anote a senha que voce criar!)
+
+=========================================================
+DUVIDAS?
+=========================================================
+
+- O navegador nao abriu?
+  Acesse: http://localhost:3000
+
+- Erro de senha?
+  A senha padrao do PostgreSQL e: postgres
+
+- Sistema nao inicia?
+  Execute novamente o SUPER_INSTALADOR_COMPLETO.bat
+
+=========================================================
+
+Bom uso do sistema!
+Escola Civico Militar Jupiara
+
+=========================================================
