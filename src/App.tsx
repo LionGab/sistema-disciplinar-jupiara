@@ -8,6 +8,8 @@ import Alunos from './components/Alunos';
 import Ocorrencias from './components/Ocorrencias';
 import Faltas from './components/Faltas';
 import Metricas from './components/Metricas';
+import RelatorioExecutivo from './components/RelatorioExecutivo';
+import GraficosTendencia from './components/GraficosTendencia';
 
 function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,6 +21,8 @@ function Navigation() {
     { path: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências' },
     { path: '/faltas', icon: Calendar, label: 'Faltas' },
     { path: '/metricas', icon: BarChart3, label: 'Métricas' },
+    { path: '/relatorio-executivo', icon: Shield, label: 'Rel. Executivo' },
+    { path: '/tendencias', icon: BarChart3, label: 'Tendências' },
   ];
 
   return (
@@ -110,6 +114,8 @@ function App() {
             <Route path="/ocorrencias" element={<Ocorrencias />} />
             <Route path="/faltas" element={<Faltas />} />
             <Route path="/metricas" element={<Metricas />} />
+            <Route path="/relatorio-executivo" element={<RelatorioExecutivo />} />
+            <Route path="/tendencias" element={<GraficosTendencia />} />
           </Routes>
         </main>
       </div>
