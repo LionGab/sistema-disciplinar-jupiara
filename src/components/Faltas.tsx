@@ -26,9 +26,10 @@ function Faltas() {
       try {
         const response = await fetch(`${API_BASE}/faltas`);
         const data = await response.json();
-        setFaltas(data);
+        setFaltas(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Erro ao buscar faltas:', error);
+        setFaltas([]);
       } finally {
         setLoading(false);
       }

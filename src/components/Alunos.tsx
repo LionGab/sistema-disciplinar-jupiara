@@ -43,10 +43,12 @@ function Alunos() {
         const alunosData = await alunosRes.json();
         const turmasData = await turmasRes.json();
 
-        setAlunos(alunosData);
-        setTurmas(turmasData);
+        setAlunos(Array.isArray(alunosData) ? alunosData : []);
+        setTurmas(Array.isArray(turmasData) ? turmasData : []);
       } catch (error) {
         console.error('Erro ao buscar dados:', error);
+        setAlunos([]);
+        setTurmas([]);
       } finally {
         setLoading(false);
       }

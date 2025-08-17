@@ -26,9 +26,19 @@ function Metricas() {
       try {
         const response = await fetch(`${API_BASE}/metricas/por-turma`);
         const data = await response.json();
-        setMetricas(data);
+        
+        // Verificar se data é um array ou um objeto com erro
+        if (Array.isArray(data)) {
+          setMetricas(data);
+        } else if (data && data.data) {
+          setMetricas(data.data);
+        } else {
+          console.error('Dados de métricas inválidos:', data);
+          setMetricas([]);
+        }
       } catch (error) {
         console.error('Erro ao buscar métricas:', error);
+        setMetricas([]);
       } finally {
         setLoading(false);
       }

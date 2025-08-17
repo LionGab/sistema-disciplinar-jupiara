@@ -200,31 +200,46 @@ exports.handler = async (event, context) => {
       }
       
       if (path === '/metricas/por-turma' && method === 'GET') {
-        const result = await pool.query(`
-          SELECT 
-            t.id as turma_id,
-            t.nome as turma_nome,
-            t.ano,
-            t.turno,
-            COUNT(DISTINCT a.id) as total_alunos,
-            COUNT(DISTINCT o.id) as total_ocorrencias,
-            COUNT(DISTINCT f.id) as total_faltas,
-            COUNT(DISTINCT CASE WHEN f.justificada = false THEN f.id END) as faltas_nao_justificadas,
-            COALESCE(AVG(to.pontos), 0) as media_pontos_ocorrencia
-          FROM turmas t
-          LEFT JOIN alunos a ON t.id = a.turma_id
-          LEFT JOIN ocorrencias o ON a.id = o.aluno_id
-          LEFT JOIN faltas f ON a.id = f.aluno_id
-          LEFT JOIN tipos_ocorrencia to ON o.tipo_ocorrencia_id = to.id
-          GROUP BY t.id, t.nome, t.ano, t.turno
-          ORDER BY t.nome
-        `);
-        
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify(result.rows)
-        };
+        try {
+          const result = await pool.query(`
+            SELECT 
+              t.id as turma_id,
+              t.nome as turma_nome,
+              t.ano,
+              t.turno,
+              COUNT(DISTINCT a.id) as total_alunos,
+              COUNT(DISTINCT o.id) as total_ocorrencias,
+              COUNT(DISTINCT f.id) as total_faltas,
+              COUNT(DISTINCT CASE WHEN f.justificada = false THEN f.id END) as faltas_nao_justificadas,
+              COALESCE(AVG(to.pontos), 0) as media_pontos_ocorrencia
+            FROM turmas t
+            LEFT JOIN alunos a ON t.id = a.turma_id
+            LEFT JOIN ocorrencias o ON a.id = o.aluno_id
+            LEFT JOIN faltas f ON a.id = f.aluno_id
+            LEFT JOIN tipos_ocorrencia to ON o.tipo_ocorrencia_id = to.id
+            GROUP BY t.id, t.nome, t.ano, t.turno
+            ORDER BY t.nome
+          `);
+          
+          console.log('Metricas por turma result:', result.rows);
+          
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify(result.rows || [])
+          };
+        } catch (error) {
+          console.error('Erro em metricas por turma:', error);
+          return {
+            statusCode: 500,
+            headers: corsHeaders,
+            body: JSON.stringify({ 
+              error: 'Erro ao buscar métricas por turma', 
+              details: error.message,
+              data: []
+            })
+          };
+        }
       }
     }
 

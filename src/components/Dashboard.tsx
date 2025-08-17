@@ -42,9 +42,19 @@ function Dashboard() {
         const turmasData = await turmasRes.json();
 
         setMetricas(metricasData);
-        setTurmas(turmasData);
+        
+        // Verificar se turmasData é um array ou um objeto com erro
+        if (Array.isArray(turmasData)) {
+          setTurmas(turmasData);
+        } else if (turmasData && turmasData.data) {
+          setTurmas(turmasData.data);
+        } else {
+          console.error('Dados de turmas inválidos:', turmasData);
+          setTurmas([]);
+        }
       } catch (error) {
         console.error('Erro ao buscar dados:', error);
+        setTurmas([]);
       } finally {
         setLoading(false);
       }

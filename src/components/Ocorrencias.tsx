@@ -46,10 +46,12 @@ function Ocorrencias() {
         const ocorrenciasData = await ocorrenciasRes.json();
         const tiposData = await tiposRes.json();
 
-        setOcorrencias(ocorrenciasData);
-        setTipos(tiposData);
+        setOcorrencias(Array.isArray(ocorrenciasData) ? ocorrenciasData : []);
+        setTipos(Array.isArray(tiposData) ? tiposData : []);
       } catch (error) {
         console.error('Erro ao buscar dados:', error);
+        setOcorrencias([]);
+        setTipos([]);
       } finally {
         setLoading(false);
       }
