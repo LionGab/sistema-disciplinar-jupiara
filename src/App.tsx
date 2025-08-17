@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Shield, Users, AlertTriangle, Calendar, BarChart3, Menu, X, Settings, FileText, UserPlus } from 'lucide-react';
+import { Shield, Users, AlertTriangle, Calendar, BarChart3, Menu, X, Settings, FileText, UserPlus, LogOut, User } from 'lucide-react';
 
 // Components
 import Dashboard from './components/Dashboard';
@@ -13,10 +13,15 @@ import GraficosTendencia from './components/GraficosTendencia';
 import Gestao from './components/Gestao';
 import Configuracoes from './components/Configuracoes';
 import FichaDisciplinar from './components/FichaDisciplinar';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Contexts
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { path: '/', icon: BarChart3, label: 'Dashboard' },
@@ -44,7 +49,7 @@ function Navigation() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-4">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -63,10 +68,27 @@ function Navigation() {
                 </Link>
               );
             })}
+            
+            {/* User Menu */}
+            <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-military-600">
+              <div className="flex items-center space-x-2">
+                <User className="h-4 w-4 text-yellow-400" />
+                <span className="text-sm text-yellow-400 font-medium">{user?.name}</span>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-military-700 hover:text-white transition-colors"
+                title="Sair do sistema"
+              >
+                <LogOut className="h-4 w-4 mr-1" />
+                Sair
+              </button>
+            </div>
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center space-x-2">
+            <span className="text-xs text-yellow-400">{user?.name}</span>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-400 hover:text-white hover:bg-military-700 px-3 py-2 rounded-md"
@@ -99,6 +121,17 @@ function Navigation() {
                   </Link>
                 );
               })}
+              {/* Mobile Logout */}
+              <button
+                onClick={() => {
+                  logout();
+                  setIsOpen(false);
+                }}
+                className="flex items-center w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-military-700 hover:text-white transition-colors"
+              >
+                <LogOut className="h-5 w-5 mr-3" />
+                Sair do Sistema
+              </button>
             </div>
           </div>
         )}
@@ -107,28 +140,38 @@ function Navigation() {
   );
 }
 
+function AppContent() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/alunos" element={<Alunos />} />
+          <Route path="/gestao" element={<Gestao />} />
+          <Route path="/ocorrencias" element={<Ocorrencias />} />
+          <Route path="/faltas" element={<Faltas />} />
+          <Route path="/ficha-disciplinar" element={<FichaDisciplinar />} />
+          <Route path="/metricas" element={<Metricas />} />
+          <Route path="/relatorio-executivo" element={<RelatorioExecutivo />} />
+          <Route path="/tendencias" element={<GraficosTendencia />} />
+          <Route path="/configuracoes" element={<Configuracoes />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        
-        <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/alunos" element={<Alunos />} />
-            <Route path="/gestao" element={<Gestao />} />
-            <Route path="/ocorrencias" element={<Ocorrencias />} />
-            <Route path="/faltas" element={<Faltas />} />
-            <Route path="/ficha-disciplinar" element={<FichaDisciplinar />} />
-            <Route path="/metricas" element={<Metricas />} />
-            <Route path="/relatorio-executivo" element={<RelatorioExecutivo />} />
-            <Route path="/tendencias" element={<GraficosTendencia />} />
-            <Route path="/configuracoes" element={<Configuracoes />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <ProtectedRoute>
+          <AppContent />
+        </ProtectedRoute>
+      </Router>
+    </AuthProvider>
   );
 }
 
