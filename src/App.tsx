@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Shield, Users, AlertTriangle, Calendar, BarChart3, Menu, X } from 'lucide-react';
+import { Shield, Users, AlertTriangle, Calendar, BarChart3, Menu, X, Settings, FileText, UserPlus } from 'lucide-react';
 
 // Components
 import Dashboard from './components/Dashboard';
@@ -10,6 +10,9 @@ import Faltas from './components/Faltas';
 import Metricas from './components/Metricas';
 import RelatorioExecutivo from './components/RelatorioExecutivo';
 import GraficosTendencia from './components/GraficosTendencia';
+import Gestao from './components/Gestao';
+import Configuracoes from './components/Configuracoes';
+import FichaDisciplinar from './components/FichaDisciplinar';
 
 function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,11 +21,14 @@ function Navigation() {
   const navItems = [
     { path: '/', icon: BarChart3, label: 'Dashboard' },
     { path: '/alunos', icon: Users, label: 'Alunos' },
+    { path: '/gestao', icon: UserPlus, label: 'Gestão' },
     { path: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências' },
     { path: '/faltas', icon: Calendar, label: 'Faltas' },
+    { path: '/ficha-disciplinar', icon: FileText, label: 'Ficha Individual' },
     { path: '/metricas', icon: BarChart3, label: 'Métricas' },
     { path: '/relatorio-executivo', icon: Shield, label: 'Rel. Executivo' },
     { path: '/tendencias', icon: BarChart3, label: 'Tendências' },
+    { path: '/configuracoes', icon: Settings, label: 'Configurações' },
   ];
 
   return (
@@ -111,11 +117,14 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/alunos" element={<Alunos />} />
+            <Route path="/gestao" element={<Gestao />} />
             <Route path="/ocorrencias" element={<Ocorrencias />} />
             <Route path="/faltas" element={<Faltas />} />
+            <Route path="/ficha-disciplinar" element={<FichaDisciplinar />} />
             <Route path="/metricas" element={<Metricas />} />
             <Route path="/relatorio-executivo" element={<RelatorioExecutivo />} />
             <Route path="/tendencias" element={<GraficosTendencia />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
           </Routes>
         </main>
       </div>
