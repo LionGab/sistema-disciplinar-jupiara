@@ -11,8 +11,24 @@ import {
   Download,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  FileSpreadsheet
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
+import { saveAs } from 'file-saver';
+
+// Estender o tipo jsPDF
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
 
 interface AlunoDetalhado {
   id: number;
@@ -71,6 +87,7 @@ function FichaDisciplinar() {
   const [historico, setHistorico] = useState<HistoricoDisciplinar | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     fetchAlunos();
@@ -224,10 +241,263 @@ function FichaDisciplinar() {
     aluno.matricula.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const exportarFichaExcel = () => {
+    if (!alunoSelecionado) {
+      alert('❌ Selecione um aluno para exportar a ficha');
+      return;
+    }
+
+    try {
+      const workbook = XLSX.utils.book_new();
+
+      // Aba 1: Dados do Aluno
+      const dadosAluno = [{
+        'Nome': alunoSelecionado.nome,
+        'Matrícula': alunoSelecionado.matricula,
+        'Turma': alunoSelecionado.turma,
+        'Data de Nascimento': new Date(alunoSelecionado.dataNascimento).toLocaleDateString('pt-BR'),
+        'Telefone Responsável': alunoSelecionado.telefoneResponsavel,
+        'Email Responsável': alunoSelecionado.emailResponsavel,
+        'Endereço': alunoSelecionado.endereco,
+        'Total Ocorrências': ocorrenciasAluno.length,
+        'Total Faltas': faltasAluno.length,
+        'Faltas Justificadas': faltasAluno.filter(f => f.justificada).length,
+        'Faltas Não Justificadas': faltasAluno.filter(f => !f.justificada).length
+      }];
+
+      const wsDados = XLSX.utils.json_to_sheet(dadosAluno);
+      XLSX.utils.book_append_sheet(workbook, wsDados, 'Dados do Aluno');
+
+      // Aba 2: Ocorrências
+      if (ocorrenciasAluno.length > 0) {
+        const ocorrenciasData = ocorrenciasAluno.map(ocorrencia => ({
+          'Data': new Date(ocorrencia.dataOcorrencia).toLocaleDateString('pt-BR'),
+          'Tipo': ocorrencia.tipo,
+          'Gravidade': ocorrencia.gravidade,
+          'Descrição': ocorrencia.descricao,
+          'Medidas Tomadas': ocorrencia.medidasTomadas,
+          'Status': ocorrencia.status
+        }));
+
+        const wsOcorrencias = XLSX.utils.json_to_sheet(ocorrenciasData);
+        XLSX.utils.book_append_sheet(workbook, wsOcorrencias, 'Ocorrências');
+      }
+
+      // Aba 3: Faltas
+      if (faltasAluno.length > 0) {
+        const faltasData = faltasAluno.map(falta => ({
+          'Data': new Date(falta.dataFalta).toLocaleDateString('pt-BR'),
+          'Justificada': falta.justificada ? 'Sim' : 'Não',
+          'Motivo': falta.motivo || '-'
+        }));
+
+        const wsFaltas = XLSX.utils.json_to_sheet(faltasData);
+        XLSX.utils.book_append_sheet(workbook, wsFaltas, 'Faltas');
+      }
+
+      // Salvar arquivo
+      const nomeArquivo = `ficha_disciplinar_${alunoSelecionado.matricula}_${alunoSelecionado.nome.replace(/\s+/g, '_')}.xlsx`;
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+      saveAs(blob, nomeArquivo);
+
+      alert('✅ Ficha disciplinar exportada em Excel com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar Excel:', error);
+      alert('❌ Erro ao exportar ficha em Excel');
+    }
+  };
+
+  const exportarFichaCSV = () => {
+    if (!alunoSelecionado) {
+      alert('❌ Selecione um aluno para exportar a ficha');
+      return;
+    }
+
+    try {
+      // Dados do aluno e resumo
+      const dadosResumo = [{
+        'Tipo': 'DADOS DO ALUNO',
+        'Campo': 'Nome',
+        'Valor': alunoSelecionado.nome
+      }, {
+        'Tipo': 'DADOS DO ALUNO',
+        'Campo': 'Matrícula',
+        'Valor': alunoSelecionado.matricula
+      }, {
+        'Tipo': 'DADOS DO ALUNO',
+        'Campo': 'Turma',
+        'Valor': alunoSelecionado.turma
+      }, {
+        'Tipo': 'RESUMO',
+        'Campo': 'Total Ocorrências',
+        'Valor': ocorrenciasAluno.length
+      }, {
+        'Tipo': 'RESUMO',
+        'Campo': 'Total Faltas',
+        'Valor': faltasAluno.length
+      }];
+
+      // Adicionar ocorrências
+      ocorrenciasAluno.forEach(ocorrencia => {
+        dadosResumo.push({
+          'Tipo': 'OCORRÊNCIA',
+          'Campo': new Date(ocorrencia.dataOcorrencia).toLocaleDateString('pt-BR'),
+          'Valor': `${ocorrencia.tipo} - ${ocorrencia.gravidade}: ${ocorrencia.descricao}`
+        });
+      });
+
+      // Adicionar faltas
+      faltasAluno.forEach(falta => {
+        dadosResumo.push({
+          'Tipo': 'FALTA',
+          'Campo': new Date(falta.dataFalta).toLocaleDateString('pt-BR'),
+          'Valor': `${falta.justificada ? 'Justificada' : 'Não Justificada'}: ${falta.motivo || '-'}`
+        });
+      });
+
+      const csv = Papa.unparse(dadosResumo);
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const nomeArquivo = `ficha_disciplinar_${alunoSelecionado.matricula}_${alunoSelecionado.nome.replace(/\s+/g, '_')}.csv`;
+      saveAs(blob, nomeArquivo);
+
+      alert('✅ Ficha disciplinar exportada em CSV com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar CSV:', error);
+      alert('❌ Erro ao exportar ficha em CSV');
+    }
+  };
+
   const exportarFicha = () => {
-    if (!alunoSelecionado) return;
-    console.log('Exportando ficha disciplinar de:', alunoSelecionado.nome);
-    alert('📄 Ficha disciplinar exportada com sucesso!');
+    if (!alunoSelecionado) {
+      alert('❌ Selecione um aluno para exportar a ficha');
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      
+      // Cabeçalho
+      doc.setFontSize(18);
+      doc.text('ESCOLA CÍVICO MILITAR JUPIARA', 14, 20);
+      doc.setFontSize(14);
+      doc.text('FICHA DISCIPLINAR INDIVIDUAL', 14, 28);
+      
+      // Linha separadora
+      doc.line(14, 32, 196, 32);
+      
+      // Dados do aluno
+      doc.setFontSize(12);
+      doc.text('DADOS PESSOAIS', 14, 42);
+      
+      let yPos = 50;
+      const leftCol = 14;
+      const rightCol = 110;
+      
+      // Coluna esquerda
+      doc.setFontSize(10);
+      doc.text(`Nome: ${alunoSelecionado.nome}`, leftCol, yPos);
+      doc.text(`Matrícula: ${alunoSelecionado.matricula}`, leftCol, yPos + 6);
+      doc.text(`Turma: ${alunoSelecionado.turma}`, leftCol, yPos + 12);
+      doc.text(`Data de Nascimento: ${new Date(alunoSelecionado.dataNascimento).toLocaleDateString('pt-BR')}`, leftCol, yPos + 18);
+      
+      // Coluna direita
+      doc.text(`Telefone Responsável: ${alunoSelecionado.telefoneResponsavel}`, rightCol, yPos);
+      doc.text(`Email Responsável: ${alunoSelecionado.emailResponsavel}`, rightCol, yPos + 6);
+      doc.text(`Endereço: ${alunoSelecionado.endereco}`, rightCol, yPos + 12);
+      
+      yPos += 30;
+      
+      // Resumo disciplinar
+      doc.setFontSize(12);
+      doc.text('RESUMO DISCIPLINAR', 14, yPos);
+      yPos += 8;
+      
+      const totalOcorrencias = ocorrenciasAluno.length;
+      const totalFaltas = faltasAluno.length;
+      const faltasJustificadas = faltasAluno.filter(f => f.justificada).length;
+      const faltasNaoJustificadas = totalFaltas - faltasJustificadas;
+      
+      doc.setFontSize(10);
+      doc.text(`Total de Ocorrências: ${totalOcorrencias}`, leftCol, yPos);
+      doc.text(`Total de Faltas: ${totalFaltas}`, rightCol, yPos);
+      doc.text(`Faltas Justificadas: ${faltasJustificadas}`, leftCol, yPos + 6);
+      doc.text(`Faltas Não Justificadas: ${faltasNaoJustificadas}`, rightCol, yPos + 6);
+      
+      yPos += 20;
+      
+      // Tabela de Ocorrências
+      if (ocorrenciasAluno.length > 0) {
+        doc.setFontSize(12);
+        doc.text('HISTÓRICO DE OCORRÊNCIAS', 14, yPos);
+        yPos += 5;
+        
+        const ocorrenciasData = ocorrenciasAluno.map(ocorrencia => [
+          new Date(ocorrencia.dataOcorrencia).toLocaleDateString('pt-BR'),
+          ocorrencia.tipo,
+          ocorrencia.gravidade,
+          ocorrencia.descricao.substring(0, 50) + '...',
+          ocorrencia.status
+        ]);
+        
+        doc.autoTable({
+          head: [['Data', 'Tipo', 'Gravidade', 'Descrição', 'Status']],
+          body: ocorrenciasData,
+          startY: yPos,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [41, 128, 185] },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 70 },
+            4: { cellWidth: 25 }
+          }
+        });
+        
+        yPos = doc.lastAutoTable.finalY + 10;
+      }
+      
+      // Tabela de Faltas (se couber na página)
+      if (faltasAluno.length > 0 && yPos < 250) {
+        doc.setFontSize(12);
+        doc.text('HISTÓRICO DE FALTAS', 14, yPos);
+        yPos += 5;
+        
+        const faltasData = faltasAluno.slice(0, 10).map(falta => [
+          new Date(falta.dataFalta).toLocaleDateString('pt-BR'),
+          falta.justificada ? 'Sim' : 'Não',
+          falta.motivo || '-'
+        ]);
+        
+        doc.autoTable({
+          head: [['Data', 'Justificada', 'Motivo']],
+          body: faltasData,
+          startY: yPos,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [243, 156, 18] },
+          columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 115 }
+          }
+        });
+      }
+      
+      // Rodapé
+      doc.setFontSize(8);
+      doc.text(`Documento gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 285);
+      doc.text('Sistema de Gestão Disciplinar - Escola Cívico Militar Jupiara', 14, 290);
+      
+      // Salvar PDF
+      doc.save(`ficha_disciplinar_${alunoSelecionado.matricula}_${alunoSelecionado.nome.replace(/\s+/g, '_')}.pdf`);
+      
+      alert('✅ Ficha disciplinar exportada em PDF com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao exportar ficha:', error);
+      alert('❌ Erro ao exportar ficha disciplinar');
+    }
   };
 
   return (
@@ -289,13 +559,52 @@ function FichaDisciplinar() {
                 <User className="h-6 w-6 text-military-600 mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900">Dados Pessoais</h3>
               </div>
-              <button
-                onClick={exportarFicha}
-                className="flex items-center px-4 py-2 bg-military-600 text-white rounded-md hover:bg-military-700"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Exportar Ficha
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center px-4 py-2 bg-military-600 text-white rounded-md hover:bg-military-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar Ficha
+                </button>
+                
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                    <button
+                      onClick={() => {
+                        exportarFicha();
+                        setShowExportMenu(false);
+                      }}
+                      className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <Download className="h-4 w-4 mr-2 text-red-600" />
+                      PDF
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        exportarFichaExcel();
+                        setShowExportMenu(false);
+                      }}
+                      className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
+                      Excel
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        exportarFichaCSV();
+                        setShowExportMenu(false);
+                      }}
+                      className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2 text-blue-600" />
+                      CSV
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
