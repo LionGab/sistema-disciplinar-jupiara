@@ -101,11 +101,15 @@ function Alunos() {
   const handleExportarRelatorioCompleto = async () => {
     setExporting(true);
     try {
-      // Simular dados de ocorrências e faltas para demonstração
-      const ocorrencias: any[] = [];
-      const faltas: any[] = [];
-      
-      const result = await exportarRelatorioCompleto(alunosFiltrados, ocorrencias, faltas);
+      const [ocorrenciasRes, faltasRes] = await Promise.all([
+        fetch(`${API_BASE}/ocorrencias`),
+        fetch(`${API_BASE}/faltas`)
+      ]);
+
+      const ocorrenciasData = await ocorrenciasRes.json();
+      const faltasData = await faltasRes.json();
+
+      const result = await exportarRelatorioCompleto(alunosFiltrados, ocorrenciasData, faltasData);
       if (result.success) {
         alert(`✅ Relatório completo exportado com sucesso!\n📁 Arquivo: ${result.filename}`);
       } else {

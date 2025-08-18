@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { exportarFaltasExcel } from '../utils/exportUtils';
 import { 
   Calendar, 
   User, 
@@ -139,8 +140,13 @@ function Faltas() {
   ];
 
   const exportarRelatorio = (formato: 'pdf' | 'excel' | 'csv') => {
-    console.log(`Exportando relatório de faltas em formato ${formato}`);
-    alert(`📊 Relatório de faltas exportado em ${formato.toUpperCase()}!`);
+    if (formato === 'excel') {
+      exportarFaltasExcel(faltas);
+      alert('📊 Relatório de faltas exportado em EXCEL!');
+    } else {
+      console.log(`Exportando relatório de faltas em formato ${formato}`);
+      alert(`Funcionalidade de exportar para ${formato.toUpperCase()} ainda não implementada.`);
+    }
   };
 
   if (loading) {

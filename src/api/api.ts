@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.PROD 
+  ? '/api'  // Em produção, usa as funções do Netlify
+  : 'http://localhost:3001/api'; // Em desenvolvimento, usa o backend local
 
 const api = axios.create({
   baseURL: API_BASE_URL,

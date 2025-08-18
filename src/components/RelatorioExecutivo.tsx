@@ -12,6 +12,7 @@ import {
   BarChart3,
   Target
 } from 'lucide-react';
+import { exportarRelatorioCompleto } from '../utils/exportUtils';
 
 interface IndicadoresExecutivos {
   totalAlunos: number;
@@ -150,10 +151,35 @@ function RelatorioExecutivo() {
     setTurmas(turmasOrdenadas);
   };
 
-  const exportarRelatorio = (formato: 'pdf' | 'excel' | 'csv') => {
-    // Implementação de exportação
+  const exportarRelatorio = async (formato: 'pdf' | 'excel' | 'csv') => {
+  if (formato === 'excel') {
+    try {
+      const [alunosRes, ocorrenciasRes, faltasRes] = await Promise.all([
+        fetch(`${API_BASE}/alunos`),
+        fetch(`${API_BASE}/ocorrencias`),
+        fetch(`${API_BASE}/faltas`)
+      ]);
+
+      const alunosData = await alunosRes.json();
+      const ocorrenciasData = await ocorrenciasRes.json();
+      const faltasData = await faltasRes.json();
+
+      const result = await exportarRelatorioCompleto(alunosData, ocorrenciasData, faltasData);
+
+      if (result.success) {
+        alert(`✅ Relatório completo exportado com sucesso!\n📁 Arquivo: ${result.filename}`);
+      } else {
+        alert('❌ Erro ao exportar relatório completo');
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert('❌ Erro ao exportar relatório completo');
+    }
+  } else {
     console.log(`Exportando relatório em formato ${formato}`);
-  };
+    alert(`Funcionalidade de exportar para ${formato.toUpperCase()} ainda não implementada.`);
+  }
+};
 
   if (loading) {
     return (
