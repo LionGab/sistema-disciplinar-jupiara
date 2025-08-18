@@ -125,11 +125,11 @@ exports.handler = async (event, context) => {
         
         let sql = `
           SELECT o.*, a.nome as aluno_nome, a.matricula, t.nome as turma_nome,
-                 to.nome as tipo_nome, to.gravidade, to.pontos
+                 tipo.nome as tipo_nome, tipo.gravidade, tipo.pontos
           FROM ocorrencias o
           JOIN alunos a ON o.aluno_id = a.id
           JOIN turmas t ON a.turma_id = t.id
-          JOIN tipos_ocorrencia to ON o.tipo_ocorrencia_id = to.id
+          JOIN tipos_ocorrencia tipo ON o.tipo_ocorrencia_id = tipo.id
           WHERE 1=1
         `;
         const params = [];
@@ -211,12 +211,12 @@ exports.handler = async (event, context) => {
               COUNT(DISTINCT o.id) as total_ocorrencias,
               COUNT(DISTINCT f.id) as total_faltas,
               COUNT(DISTINCT CASE WHEN f.justificada = false THEN f.id END) as faltas_nao_justificadas,
-              COALESCE(AVG(to.pontos), 0) as media_pontos_ocorrencia
+              COALESCE(AVG(tipo.pontos), 0) as media_pontos_ocorrencia
             FROM turmas t
             LEFT JOIN alunos a ON t.id = a.turma_id
             LEFT JOIN ocorrencias o ON a.id = o.aluno_id
             LEFT JOIN faltas f ON a.id = f.aluno_id
-            LEFT JOIN tipos_ocorrencia to ON o.tipo_ocorrencia_id = to.id
+            LEFT JOIN tipos_ocorrencia tipo ON o.tipo_ocorrencia_id = tipo.id
             GROUP BY t.id, t.nome, t.ano, t.turno
             ORDER BY t.nome
           `);
