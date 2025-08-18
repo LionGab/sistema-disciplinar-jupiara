@@ -37,9 +37,7 @@ interface Turma {
   turno: string;
 }
 
-const API_BASE = process.env.NODE_ENV === 'production' 
-  ? '/.netlify/functions/api' 
-  : 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 function Alunos() {
   const [alunos, setAlunos] = useState<Aluno[]>([]);

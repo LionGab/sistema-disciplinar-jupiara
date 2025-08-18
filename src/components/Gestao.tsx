@@ -63,9 +63,7 @@ interface TipoOcorrencia {
   pontos: number;
 }
 
-const API_BASE = process.env.NODE_ENV === 'production' 
-  ? '/.netlify/functions/api' 
-  : 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 function Gestao() {
   const [activeTab, setActiveTab] = useState<'alunos' | 'faltas' | 'medidas'>('alunos');
@@ -135,8 +133,36 @@ function Gestao() {
     e.preventDefault();
     try {
       console.log('Cadastrando aluno:', novoAluno);
-      // Em produção, faria POST para API
+      
+      const payload = {
+        matricula: novoAluno.matricula,
+        nome: novoAluno.nome,
+        data_nascimento: novoAluno.dataNascimento,
+        turma_id: parseInt(novoAluno.turmaId),
+        telefone_responsavel: novoAluno.telefoneResponsavel || null,
+        email_responsavel: novoAluno.emailResponsavel || null,
+        endereco: novoAluno.endereco || null,
+        observacoes: novoAluno.observacoes || null
+      };
+      
+      const response = await fetch(`${API_BASE}/alunos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao cadastrar aluno');
+      }
+      
+      const result = await response.json();
+      console.log('Aluno cadastrado:', result);
+      
       alert('✅ Aluno cadastrado com sucesso!');
+      
+      // Limpar formulário
       setNovoAluno({
         matricula: '',
         nome: '',
@@ -147,6 +173,10 @@ function Gestao() {
         endereco: '',
         observacoes: ''
       });
+      
+      // Recarregar lista de alunos
+      fetchDados();
+      
     } catch (error) {
       console.error('Erro ao cadastrar aluno:', error);
       alert('❌ Erro ao cadastrar aluno');
