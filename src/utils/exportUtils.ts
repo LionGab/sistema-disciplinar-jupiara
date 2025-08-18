@@ -518,6 +518,252 @@ export const exportarRelatorioCompleto = async (alunosData: any[], ocorrenciasDa
   }
 };
 
+// ===== FUNÇÕES DE IMPORTAÇÃO =====
+
+// Interface para dados do aluno a ser importado
+interface AlunoImportacao {
+  matricula: string;
+  nome: string;
+  data_nascimento: string;
+  turma_id: number;
+  telefone_responsavel: string;
+  email_responsavel: string;
+  endereco: string;
+  observacoes?: string;
+}
+
+// Função para gerar template de importação
+export const gerarTemplateImportacao = () => {
+  try {
+    const templateData = [
+      {
+        'Matrícula': '2024001',
+        'Nome Completo': 'João Silva Santos',
+        'Data de Nascimento': '15/03/2010',
+        'Turma ID': '1',
+        'Telefone Responsável': '(11) 99999-9999',
+        'Email Responsável': 'joao.responsavel@email.com',
+        'Endereço': 'Rua das Flores, 123 - Centro',
+        'Observações': 'Aluno transferido'
+      },
+      {
+        'Matrícula': '2024002',
+        'Nome Completo': 'Maria Oliveira Costa',
+        'Data de Nascimento': '22/07/2011',
+        'Turma ID': '2',
+        'Telefone Responsável': '(11) 88888-8888',
+        'Email Responsável': 'maria.responsavel@email.com',
+        'Endereço': 'Av. Principal, 456 - Vila Nova',
+        'Observações': ''
+      }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    
+    // Ajustar largura das colunas
+    worksheet['!cols'] = [
+      { wch: 12 }, // Matrícula
+      { wch: 25 }, // Nome
+      { wch: 18 }, // Data Nascimento
+      { wch: 10 }, // Turma ID
+      { wch: 18 }, // Telefone
+      { wch: 30 }, // Email
+      { wch: 35 }, // Endereço
+      { wch: 20 }  // Observações
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Alunos');
+    
+    // Adicionar uma aba de instruções
+    const instrucoes = [
+      { Campo: 'Matrícula', Descrição: 'Número único de matrícula do aluno', Obrigatório: 'Sim', Exemplo: '2024001' },
+      { Campo: 'Nome Completo', Descrição: 'Nome completo do aluno', Obrigatório: 'Sim', Exemplo: 'João Silva Santos' },
+      { Campo: 'Data de Nascimento', Descrição: 'Data no formato DD/MM/AAAA', Obrigatório: 'Sim', Exemplo: '15/03/2010' },
+      { Campo: 'Turma ID', Descrição: 'ID numérico da turma (consulte sistema)', Obrigatório: 'Sim', Exemplo: '1' },
+      { Campo: 'Telefone Responsável', Descrição: 'Telefone com DDD', Obrigatório: 'Sim', Exemplo: '(11) 99999-9999' },
+      { Campo: 'Email Responsável', Descrição: 'Email válido do responsável', Obrigatório: 'Sim', Exemplo: 'responsavel@email.com' },
+      { Campo: 'Endereço', Descrição: 'Endereço completo', Obrigatório: 'Sim', Exemplo: 'Rua das Flores, 123' },
+      { Campo: 'Observações', Descrição: 'Informações adicionais', Obrigatório: 'Não', Exemplo: 'Aluno transferido' }
+    ];
+
+    const wsInstrucoes = XLSX.utils.json_to_sheet(instrucoes);
+    wsInstrucoes['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 12 }, { wch: 25 }];
+    XLSX.utils.book_append_sheet(workbook, wsInstrucoes, 'Instruções');
+
+    const nomeArquivo = `template_importacao_alunos_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    
+    saveAs(blob, nomeArquivo);
+    
+    return { success: true, filename: nomeArquivo };
+  } catch (error) {
+    console.error('Erro ao gerar template:', error);
+    return { success: false, error: error };
+  }
+};
+
+// Função para processar arquivo de importação
+export const processarImportacaoAlunos = (file: File): Promise<{ success: boolean; dados?: AlunoImportacao[]; erro?: string; }> => {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          let workbook: any;
+          
+          if (file.name.endsWith('.csv')) {
+            // Processar CSV
+            const csvData = Papa.parse(data as string, {
+              header: true,
+              skipEmptyLines: true,
+              encoding: 'UTF-8'
+            });
+            
+            if (csvData.errors.length > 0) {
+              resolve({ success: false, erro: 'Erro ao processar CSV: ' + csvData.errors[0].message });
+              return;
+            }
+            
+            const alunosProcessados = processarDadosImportacao(csvData.data);
+            resolve(alunosProcessados);
+            
+          } else {
+            // Processar Excel
+            workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            const alunosProcessados = processarDadosImportacao(jsonData);
+            resolve(alunosProcessados);
+          }
+        } catch (error) {
+          console.error('Erro ao processar arquivo:', error);
+          resolve({ success: false, erro: 'Erro ao processar arquivo: ' + (error as Error).message });
+        }
+      };
+      
+      reader.onerror = () => {
+        resolve({ success: false, erro: 'Erro ao ler arquivo' });
+      };
+      
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file, 'UTF-8');
+      } else {
+        reader.readAsBinaryString(file);
+      }
+      
+    } catch (error) {
+      console.error('Erro na importação:', error);
+      resolve({ success: false, erro: 'Erro na importação: ' + (error as Error).message });
+    }
+  });
+};
+
+// Função auxiliar para processar os dados importados
+const processarDadosImportacao = (dados: any[]): { success: boolean; dados?: AlunoImportacao[]; erro?: string; } => {
+  try {
+    const alunosValidos: AlunoImportacao[] = [];
+    const erros: string[] = [];
+    
+    dados.forEach((linha, index) => {
+      const numeroLinha = index + 2; // +2 porque começa na linha 2 (linha 1 é cabeçalho)
+      
+      // Mapear campos (aceitar variações de nomes)
+      const matricula = linha['Matrícula'] || linha['matricula'] || linha['MATRICULA'] || '';
+      const nome = linha['Nome Completo'] || linha['Nome'] || linha['nome'] || linha['NOME'] || '';
+      const dataNascimento = linha['Data de Nascimento'] || linha['Data Nascimento'] || linha['data_nascimento'] || '';
+      const turmaId = linha['Turma ID'] || linha['Turma'] || linha['turma_id'] || '';
+      const telefone = linha['Telefone Responsável'] || linha['Telefone'] || linha['telefone_responsavel'] || '';
+      const email = linha['Email Responsável'] || linha['Email'] || linha['email_responsavel'] || '';
+      const endereco = linha['Endereço'] || linha['endereco'] || linha['ENDERECO'] || '';
+      const observacoes = linha['Observações'] || linha['Observacoes'] || linha['observacoes'] || '';
+      
+      // Validações
+      if (!matricula) {
+        erros.push(`Linha ${numeroLinha}: Matrícula é obrigatória`);
+      }
+      
+      if (!nome) {
+        erros.push(`Linha ${numeroLinha}: Nome é obrigatório`);
+      }
+      
+      if (!dataNascimento) {
+        erros.push(`Linha ${numeroLinha}: Data de nascimento é obrigatória`);
+      }
+      
+      if (!turmaId) {
+        erros.push(`Linha ${numeroLinha}: Turma ID é obrigatório`);
+      }
+      
+      if (!telefone) {
+        erros.push(`Linha ${numeroLinha}: Telefone do responsável é obrigatório`);
+      }
+      
+      if (!email) {
+        erros.push(`Linha ${numeroLinha}: Email do responsável é obrigatório`);
+      }
+      
+      // Validar formato da data
+      if (dataNascimento) {
+        const dataRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+        if (!dataRegex.test(dataNascimento)) {
+          erros.push(`Linha ${numeroLinha}: Data de nascimento deve estar no formato DD/MM/AAAA`);
+        }
+      }
+      
+      // Validar email
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        erros.push(`Linha ${numeroLinha}: Email inválido`);
+      }
+      
+      // Se não há erros nesta linha, adicionar aluno
+      if (matricula && nome && dataNascimento && turmaId && telefone && email) {
+        // Converter data para formato ISO
+        let dataFormatada = '';
+        if (dataNascimento) {
+          const partesData = dataNascimento.split('/');
+          if (partesData.length === 3) {
+            const dia = partesData[0].padStart(2, '0');
+            const mes = partesData[1].padStart(2, '0');
+            const ano = partesData[2];
+            dataFormatada = `${ano}-${mes}-${dia}`;
+          }
+        }
+        
+        alunosValidos.push({
+          matricula: matricula.toString(),
+          nome: nome.toString(),
+          data_nascimento: dataFormatada,
+          turma_id: parseInt(turmaId.toString()),
+          telefone_responsavel: telefone.toString(),
+          email_responsavel: email.toString(),
+          endereco: endereco.toString() || '',
+          observacoes: observacoes.toString() || ''
+        });
+      }
+    });
+    
+    if (erros.length > 0) {
+      return { success: false, erro: erros.join('\n') };
+    }
+    
+    if (alunosValidos.length === 0) {
+      return { success: false, erro: 'Nenhum aluno válido encontrado na planilha' };
+    }
+    
+    return { success: true, dados: alunosValidos };
+    
+  } catch (error) {
+    console.error('Erro ao processar dados:', error);
+    return { success: false, erro: 'Erro ao processar dados: ' + (error as Error).message };
+  }
+};
+
 // ===== FUNÇÕES AUXILIARES =====
 
 const getClassificacaoTexto = (indice: number): string => {

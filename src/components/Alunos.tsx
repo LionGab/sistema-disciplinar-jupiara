@@ -13,13 +13,20 @@ import {
   Mail,
   MapPin,
   BookOpen,
-  BarChart3
+  BarChart3,
+  Upload,
+  Plus,
+  X,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { 
   exportarAlunosExcel, 
   exportarAlunosPDF, 
   exportarAlunosCSV, 
-  exportarRelatorioCompleto 
+  exportarRelatorioCompleto,
+  gerarTemplateImportacao,
+  processarImportacaoAlunos
 } from '../utils/exportUtils';
 
 interface Aluno {
@@ -53,6 +60,10 @@ function Alunos() {
   const [exporting, setExporting] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<{success: boolean; message: string; dados?: any[]} | null>(null);
 
   useEffect(() => {
     const fetchDados = async () => {
@@ -160,6 +171,148 @@ function Alunos() {
       alert('❌ Erro ao exportar relatório completo');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleBaixarTemplate = async () => {
+    try {
+      const result = await gerarTemplateImportacao();
+      if (result.success) {
+        alert(`✅ Template baixado com sucesso!\n📁 Arquivo: ${result.filename}`);
+      } else {
+        alert('❌ Erro ao baixar template');
+      }
+    } catch (error) {
+      console.error('Erro ao baixar template:', error);
+      alert('❌ Erro ao baixar template');
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const isValidFormat = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv');
+      
+      if (!isValidFormat) {
+        alert('❌ Formato de arquivo inválido. Use Excel (.xlsx, .xls) ou CSV (.csv)');
+        return;
+      }
+      
+      setImportFile(file);
+      setImportResult(null);
+    }
+  };
+
+  const handleProcessarImportacao = async () => {
+    if (!importFile) {
+      alert('❌ Selecione um arquivo primeiro');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const resultado = await processarImportacaoAlunos(importFile);
+      
+      if (resultado.success && resultado.dados) {
+        setImportResult({
+          success: true,
+          message: `✅ ${resultado.dados.length} alunos validados com sucesso!`,
+          dados: resultado.dados
+        });
+      } else {
+        setImportResult({
+          success: false,
+          message: `❌ Erro na validação:\n${resultado.erro}`,
+          dados: []
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao processar importação:', error);
+      setImportResult({
+        success: false,
+        message: '❌ Erro ao processar arquivo',
+        dados: []
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleConfirmarImportacao = async () => {
+    if (!importResult?.dados || importResult.dados.length === 0) {
+      return;
+    }
+
+    setImporting(true);
+    try {
+      let sucessos = 0;
+      let erros = 0;
+      const errosDetalhados = [];
+
+      for (const aluno of importResult.dados) {
+        try {
+          const response = await fetch(`${API_BASE}/alunos`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(aluno)
+          });
+
+          if (response.ok) {
+            sucessos++;
+          } else {
+            erros++;
+            const errorText = await response.text();
+            errosDetalhados.push(`${aluno.matricula}: ${errorText}`);
+          }
+        } catch (error) {
+          erros++;
+          errosDetalhados.push(`${aluno.matricula}: Erro de conexão`);
+        }
+      }
+
+      // Atualizar lista de alunos
+      const fetchDados = async () => {
+        try {
+          const [alunosRes, turmasRes] = await Promise.all([
+            fetch(`${API_BASE}/alunos`),
+            fetch(`${API_BASE}/turmas`)
+          ]);
+          
+          const alunosData = await alunosRes.json();
+          const turmasData = await turmasRes.json();
+          
+          setAlunos(Array.isArray(alunosData) ? alunosData : []);
+          setTurmas(Array.isArray(turmasData) ? turmasData : []);
+        } catch (error) {
+          console.error('Erro ao atualizar dados:', error);
+        }
+      };
+      
+      await fetchDados();
+      
+      // Mostrar resultado
+      let mensagem = `📊 Importação concluída!\n✅ Sucessos: ${sucessos}\n❌ Erros: ${erros}`;
+      if (errosDetalhados.length > 0) {
+        mensagem += `\n\nDetalhes dos erros:\n${errosDetalhados.slice(0, 5).join('\n')}`;
+        if (errosDetalhados.length > 5) {
+          mensagem += `\n... e mais ${errosDetalhados.length - 5} erro(s)`;
+        }
+      }
+      
+      alert(mensagem);
+      
+      // Fechar modal
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportResult(null);
+      
+    } catch (error) {
+      console.error('Erro na importação:', error);
+      alert('❌ Erro ao importar alunos');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -287,6 +440,14 @@ function Alunos() {
                 </div>
               )}
             </div>
+            
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Importar Alunos
+            </button>
           </div>
         </div>
       </div>
@@ -550,6 +711,170 @@ function Alunos() {
             <div className="text-center">
               <div className="text-3xl font-bold">{alunosFiltrados.filter(a => a.email_responsavel).length}</div>
               <div className="text-military-100 text-sm">Com Email</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Importação */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Importar Alunos via Planilha</h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResult(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Passo 1: Baixar Template */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    1
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-blue-900 mb-2">Baixar Template</h3>
+                    <p className="text-blue-700 text-sm mb-3">
+                      Baixe o template Excel com o formato correto e instruções detalhadas.
+                    </p>
+                    <button
+                      onClick={handleBaixarTemplate}
+                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Baixar Template
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Passo 2: Selecionar Arquivo */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    2
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-green-900 mb-2">Selecionar Arquivo</h3>
+                    <p className="text-green-700 text-sm mb-3">
+                      Selecione sua planilha preenchida (Excel ou CSV).
+                    </p>
+                    
+                    <div className="flex items-center space-x-3">
+                      <label className="flex items-center px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 cursor-pointer">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Escolher Arquivo
+                        <input
+                          type="file"
+                          accept=".xlsx,.xls,.csv"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                        />
+                      </label>
+                      
+                      {importFile && (
+                        <div className="flex items-center text-green-700 text-sm">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          {importFile.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Passo 3: Processar e Validar */}
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    3
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-orange-900 mb-2">Validar Dados</h3>
+                    <p className="text-orange-700 text-sm mb-3">
+                      Processe e valide os dados antes da importação final.
+                    </p>
+                    
+                    <button
+                      onClick={handleProcessarImportacao}
+                      disabled={!importFile || importing}
+                      className="flex items-center px-3 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {importing ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      )}
+                      {importing ? 'Validando...' : 'Validar Dados'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resultado da Validação */}
+              {importResult && (
+                <div className={`p-4 rounded-lg border ${
+                  importResult.success 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      {importResult.success ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className={`font-medium ${importResult.success ? 'text-green-900' : 'text-red-900'}`}>
+                        Resultado da Validação
+                      </h4>
+                      <pre className={`text-sm mt-2 whitespace-pre-wrap ${importResult.success ? 'text-green-700' : 'text-red-700'}`}>
+                        {importResult.message}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de Ação */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportFile(null);
+                    setImportResult(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                
+                {importResult?.success && (
+                  <button
+                    onClick={handleConfirmarImportacao}
+                    disabled={importing}
+                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
+                  >
+                    {importing ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    {importing ? 'Importando...' : `Confirmar Importação (${importResult.dados?.length || 0} alunos)`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
