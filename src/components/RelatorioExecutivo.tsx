@@ -12,7 +12,11 @@ import {
   BarChart3,
   Target
 } from 'lucide-react';
-import { exportarRelatorioCompleto } from '../utils/exportUtils';
+import { 
+  exportarRelatorioCompleto,
+  exportarAlunosPDF,
+  exportarAlunosCSV 
+} from '../utils/exportUtils';
 
 interface IndicadoresExecutivos {
   totalAlunos: number;
@@ -152,7 +156,6 @@ function RelatorioExecutivo() {
   };
 
   const exportarRelatorio = async (formato: 'pdf' | 'excel' | 'csv') => {
-  if (formato === 'excel') {
     try {
       const [alunosRes, ocorrenciasRes, faltasRes] = await Promise.all([
         fetch(`${API_BASE}/alunos`),
@@ -164,22 +167,45 @@ function RelatorioExecutivo() {
       const ocorrenciasData = await ocorrenciasRes.json();
       const faltasData = await faltasRes.json();
 
-      const result = await exportarRelatorioCompleto(alunosData, ocorrenciasData, faltasData);
-
-      if (result.success) {
-        alert(`✅ Relatório completo exportado com sucesso!\n📁 Arquivo: ${result.filename}`);
-      } else {
-        alert('❌ Erro ao exportar relatório completo');
+      let result;
+      
+      switch (formato) {
+        case 'excel':
+          result = await exportarRelatorioCompleto(alunosData, ocorrenciasData, faltasData);
+          if (result.success) {
+            alert(`✅ Relatório completo exportado em Excel!\n📁 Arquivo: ${result.filename}`);
+          } else {
+            alert('❌ Erro ao exportar Excel');
+          }
+          break;
+          
+        case 'pdf':
+          // Como o relatório executivo é complexo, vamos exportar um resumo em PDF
+          result = await exportarAlunosPDF(alunosData);
+          if (result.success) {
+            alert('✅ Resumo executivo exportado em PDF!');
+          } else {
+            alert('❌ Erro ao exportar PDF');
+          }
+          break;
+          
+        case 'csv':
+          result = await exportarAlunosCSV(alunosData);
+          if (result.success) {
+            alert('✅ Dados executivos exportados em CSV!');
+          } else {
+            alert('❌ Erro ao exportar CSV');
+          }
+          break;
+          
+        default:
+          alert(`Formato ${formato} não suportado`);
       }
     } catch (error) {
       console.error('Erro na exportação:', error);
-      alert('❌ Erro ao exportar relatório completo');
+      alert(`❌ Erro ao exportar ${formato.toUpperCase()}`);
     }
-  } else {
-    console.log(`Exportando relatório em formato ${formato}`);
-    alert(`Funcionalidade de exportar para ${formato.toUpperCase()} ainda não implementada.`);
-  }
-};
+  };
 
   if (loading) {
     return (

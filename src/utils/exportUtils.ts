@@ -1,5 +1,18 @@
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import Papa from 'papaparse';
+
+// Estender o tipo jsPDF para incluir autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
 
 // Tipos para exportação
 interface AlunoExport {
@@ -42,6 +55,8 @@ interface FaltaExport {
   motivo: string;
   documento: string;
 }
+
+// ===== FUNÇÕES DE EXPORTAÇÃO EXCEL =====
 
 // Função principal de exportação de alunos
 export const exportarAlunosExcel = (dados: any[], incluirMetricas: boolean = true) => {
@@ -223,6 +238,211 @@ export const exportarFaltasExcel = (dados: any[]) => {
   }
 };
 
+// ===== FUNÇÕES DE EXPORTAÇÃO PDF =====
+
+export const exportarAlunosPDF = (dados: any[]) => {
+  try {
+    const doc = new jsPDF();
+    
+    // Título
+    doc.setFontSize(16);
+    doc.text('Escola Cívico Militar Jupiara', 14, 15);
+    doc.setFontSize(12);
+    doc.text('Relatório de Alunos', 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+    
+    // Preparar dados para a tabela
+    const tableData = dados.map((aluno) => [
+      aluno.matricula || '',
+      aluno.nome || '',
+      aluno.turma_nome || '',
+      aluno.total_ocorrencias || 0,
+      aluno.total_faltas || 0,
+      getClassificacaoTexto(aluno.indice_disciplinar || 0)
+    ]);
+    
+    // Criar tabela
+    doc.autoTable({
+      head: [['Matrícula', 'Nome', 'Turma', 'Ocorrências', 'Faltas', 'Classificação']],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185] }
+    });
+    
+    // Salvar PDF
+    doc.save(`alunos_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao exportar PDF:', error);
+    return { success: false, error };
+  }
+};
+
+export const exportarOcorrenciasPDF = (dados: any[]) => {
+  try {
+    const doc = new jsPDF('l'); // Landscape
+    
+    // Título
+    doc.setFontSize(16);
+    doc.text('Escola Cívico Militar Jupiara', 14, 15);
+    doc.setFontSize(12);
+    doc.text('Relatório de Ocorrências Disciplinares', 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+    
+    // Preparar dados para a tabela
+    const tableData = dados.map((ocorrencia) => [
+      new Date(ocorrencia.data_ocorrencia).toLocaleDateString('pt-BR'),
+      ocorrencia.aluno_nome || '',
+      ocorrencia.turma_nome || '',
+      ocorrencia.tipo_nome || '',
+      ocorrencia.gravidade || '',
+      ocorrencia.pontos || 0,
+      (ocorrencia.descricao || '').substring(0, 50) + '...'
+    ]);
+    
+    // Criar tabela
+    doc.autoTable({
+      head: [['Data', 'Aluno', 'Turma', 'Tipo', 'Gravidade', 'Pontos', 'Descrição']],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [192, 57, 43] }
+    });
+    
+    // Salvar PDF
+    doc.save(`ocorrencias_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao exportar PDF:', error);
+    return { success: false, error };
+  }
+};
+
+export const exportarFaltasPDF = (dados: any[]) => {
+  try {
+    const doc = new jsPDF();
+    
+    // Título
+    doc.setFontSize(16);
+    doc.text('Escola Cívico Militar Jupiara', 14, 15);
+    doc.setFontSize(12);
+    doc.text('Relatório de Faltas', 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+    
+    // Preparar dados para a tabela
+    const tableData = dados.map((falta) => [
+      new Date(falta.data_falta).toLocaleDateString('pt-BR'),
+      falta.aluno_nome || '',
+      falta.turma_nome || '',
+      falta.justificada ? 'Sim' : 'Não',
+      falta.motivo || ''
+    ]);
+    
+    // Criar tabela
+    doc.autoTable({
+      head: [['Data', 'Aluno', 'Turma', 'Justificada', 'Motivo']],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [243, 156, 18] }
+    });
+    
+    // Salvar PDF
+    doc.save(`faltas_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao exportar PDF:', error);
+    return { success: false, error };
+  }
+};
+
+// ===== FUNÇÕES DE EXPORTAÇÃO CSV =====
+
+export const exportarAlunosCSV = (dados: any[]) => {
+  try {
+    const csvData = dados.map((aluno) => ({
+      'Matrícula': aluno.matricula || '',
+      'Nome': aluno.nome || '',
+      'Turma': aluno.turma_nome || '',
+      'Data de Nascimento': aluno.data_nascimento ? new Date(aluno.data_nascimento).toLocaleDateString('pt-BR') : '',
+      'Telefone Responsável': aluno.telefone_responsavel || '',
+      'Email Responsável': aluno.email_responsavel || '',
+      'Total Ocorrências': aluno.total_ocorrencias || 0,
+      'Total Faltas': aluno.total_faltas || 0,
+      'Índice Disciplinar': aluno.indice_disciplinar || 0,
+      'Classificação': getClassificacaoTexto(aluno.indice_disciplinar || 0)
+    }));
+    
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `alunos_${new Date().toISOString().split('T')[0]}.csv`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao exportar CSV:', error);
+    return { success: false, error };
+  }
+};
+
+export const exportarOcorrenciasCSV = (dados: any[]) => {
+  try {
+    const csvData = dados.map((ocorrencia) => ({
+      'Data': new Date(ocorrencia.data_ocorrencia).toLocaleDateString('pt-BR'),
+      'Hora': ocorrencia.hora_ocorrencia || '',
+      'Aluno': ocorrencia.aluno_nome || '',
+      'Matrícula': ocorrencia.matricula || '',
+      'Turma': ocorrencia.turma_nome || '',
+      'Tipo': ocorrencia.tipo_nome || '',
+      'Gravidade': ocorrencia.gravidade || '',
+      'Pontos': ocorrencia.pontos || 0,
+      'Descrição': ocorrencia.descricao || '',
+      'Medidas Tomadas': ocorrencia.medidas_tomadas || '',
+      'Responsável': ocorrencia.responsavel_registro || ''
+    }));
+    
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `ocorrencias_${new Date().toISOString().split('T')[0]}.csv`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao exportar CSV:', error);
+    return { success: false, error };
+  }
+};
+
+export const exportarFaltasCSV = (dados: any[]) => {
+  try {
+    const csvData = dados.map((falta) => ({
+      'Data': new Date(falta.data_falta).toLocaleDateString('pt-BR'),
+      'Aluno': falta.aluno_nome || '',
+      'Matrícula': falta.matricula || '',
+      'Turma': falta.turma_nome || '',
+      'Justificada': falta.justificada ? 'Sim' : 'Não',
+      'Motivo': falta.motivo || '',
+      'Documento': falta.documento_justificativa || ''
+    }));
+    
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `faltas_${new Date().toISOString().split('T')[0]}.csv`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao exportar CSV:', error);
+    return { success: false, error };
+  }
+};
+
+// ===== FUNÇÃO DE EXPORTAÇÃO COMPLETA (EXCEL) =====
+
 // Exportação de relatório completo
 export const exportarRelatorioCompleto = async (alunosData: any[], ocorrenciasData: any[], faltasData: any[]) => {
   try {
@@ -298,7 +518,8 @@ export const exportarRelatorioCompleto = async (alunosData: any[], ocorrenciasDa
   }
 };
 
-// Funções auxiliares
+// ===== FUNÇÕES AUXILIARES =====
+
 const getClassificacaoTexto = (indice: number): string => {
   if (indice === 0) return 'Exemplar';
   if (indice <= 1.0) return 'Bom';

@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Clock, User, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Clock, User, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { 
+  exportarOcorrenciasExcel,
+  exportarOcorrenciasPDF,
+  exportarOcorrenciasCSV 
+} from '../utils/exportUtils';
 
 interface Ocorrencia {
   id: number;
@@ -34,6 +39,8 @@ function Ocorrencias() {
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [tipos, setTipos] = useState<TipoOcorrencia[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     const fetchDados = async () => {
@@ -59,6 +66,57 @@ function Ocorrencias() {
 
     fetchDados();
   }, []);
+
+  const handleExportarExcel = async () => {
+    setExporting(true);
+    try {
+      const result = await exportarOcorrenciasExcel(ocorrencias);
+      if (result.success) {
+        alert(`✅ Ocorrências exportadas em Excel!\n📁 Arquivo: ${result.filename}`);
+      } else {
+        alert('❌ Erro ao exportar Excel');
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert('❌ Erro ao exportar Excel');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportarPDF = async () => {
+    setExporting(true);
+    try {
+      const result = await exportarOcorrenciasPDF(ocorrencias);
+      if (result.success) {
+        alert('✅ Ocorrências exportadas em PDF!');
+      } else {
+        alert('❌ Erro ao exportar PDF');
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert('❌ Erro ao exportar PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportarCSV = async () => {
+    setExporting(true);
+    try {
+      const result = await exportarOcorrenciasCSV(ocorrencias);
+      if (result.success) {
+        alert('✅ Ocorrências exportadas em CSV!');
+      } else {
+        alert('❌ Erro ao exportar CSV');
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert('❌ Erro ao exportar CSV');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const getGravidadeColor = (gravidade: string) => {
     switch (gravidade) {
@@ -106,8 +164,61 @@ function Ocorrencias() {
               <p className="text-gray-600">Registro e acompanhamento de ocorrências</p>
             </div>
           </div>
-          <div className="text-sm text-gray-500">
-            Total: {ocorrencias.length} ocorrências
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500">
+              Total: {ocorrencias.length} ocorrências
+            </div>
+            
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={ocorrencias.length === 0}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-md"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </button>
+              
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                  <button
+                    onClick={() => {
+                      handleExportarExcel();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
+                    Excel
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      handleExportarPDF();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-red-600" />
+                    PDF
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      handleExportarCSV();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-blue-600" />
+                    CSV
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

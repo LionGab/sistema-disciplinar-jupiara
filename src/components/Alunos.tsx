@@ -15,7 +15,12 @@ import {
   BookOpen,
   BarChart3
 } from 'lucide-react';
-import { exportarAlunosExcel, exportarRelatorioCompleto } from '../utils/exportUtils';
+import { 
+  exportarAlunosExcel, 
+  exportarAlunosPDF, 
+  exportarAlunosCSV, 
+  exportarRelatorioCompleto 
+} from '../utils/exportUtils';
 
 interface Aluno {
   id: number;
@@ -47,6 +52,7 @@ function Alunos() {
   const [selectedTurma, setSelectedTurma] = useState('');
   const [exporting, setExporting] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     const fetchDados = async () => {
@@ -93,6 +99,40 @@ function Alunos() {
     } catch (error) {
       console.error('Erro na exportação:', error);
       alert('❌ Erro ao exportar lista de alunos');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportarPDF = async () => {
+    setExporting(true);
+    try {
+      const result = await exportarAlunosPDF(alunosFiltrados);
+      if (result.success) {
+        alert('✅ PDF exportado com sucesso!');
+      } else {
+        alert('❌ Erro ao exportar PDF');
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert('❌ Erro ao exportar PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportarCSV = async () => {
+    setExporting(true);
+    try {
+      const result = await exportarAlunosCSV(alunosFiltrados);
+      if (result.success) {
+        alert('✅ CSV exportado com sucesso!');
+      } else {
+        alert('❌ Erro ao exportar CSV');
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert('❌ Erro ao exportar CSV');
     } finally {
       setExporting(false);
     }
@@ -183,31 +223,70 @@ function Alunos() {
               </button>
             </div>
             
-            <button
-              onClick={handleExportarAlunos}
-              disabled={exporting || alunosFiltrados.length === 0}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-md"
-            >
-              {exporting ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-              )}
-              Exportar Excel
-            </button>
-            
-            <button
-              onClick={handleExportarRelatorioCompleto}
-              disabled={exporting || alunosFiltrados.length === 0}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-md"
-            >
-              {exporting ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={alunosFiltrados.length === 0}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-md"
+              >
                 <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </button>
+              
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                  <button
+                    onClick={() => {
+                      handleExportarAlunos();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
+                    Excel
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      handleExportarPDF();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-red-600" />
+                    PDF
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      handleExportarCSV();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-blue-600" />
+                    CSV
+                  </button>
+                  
+                  <div className="border-t border-gray-200"></div>
+                  
+                  <button
+                    onClick={() => {
+                      handleExportarRelatorioCompleto();
+                      setShowExportMenu(false);
+                    }}
+                    disabled={exporting}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2 text-purple-600" />
+                    Relatório Completo
+                  </button>
+                </div>
               )}
-              Relatório Completo
-            </button>
+            </div>
           </div>
         </div>
       </div>

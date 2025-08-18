@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { exportarFaltasExcel } from '../utils/exportUtils';
+import { 
+  exportarFaltasExcel,
+  exportarFaltasPDF,
+  exportarFaltasCSV 
+} from '../utils/exportUtils';
 import { 
   Calendar, 
   User, 
@@ -139,13 +143,44 @@ function Faltas() {
     { mes: 'Ago/24', faltas: 57, justificadas: 34, naoJustificadas: 23, tendencia: 'up' }
   ];
 
-  const exportarRelatorio = (formato: 'pdf' | 'excel' | 'csv') => {
-    if (formato === 'excel') {
-      exportarFaltasExcel(faltas);
-      alert('📊 Relatório de faltas exportado em EXCEL!');
-    } else {
-      console.log(`Exportando relatório de faltas em formato ${formato}`);
-      alert(`Funcionalidade de exportar para ${formato.toUpperCase()} ainda não implementada.`);
+  const exportarRelatorio = async (formato: 'pdf' | 'excel' | 'csv') => {
+    try {
+      let result;
+      
+      switch (formato) {
+        case 'excel':
+          result = await exportarFaltasExcel(faltas);
+          if (result.success) {
+            alert(`📊 Relatório de faltas exportado em EXCEL!\n📁 Arquivo: ${result.filename}`);
+          } else {
+            alert('❌ Erro ao exportar Excel');
+          }
+          break;
+          
+        case 'pdf':
+          result = await exportarFaltasPDF(faltas);
+          if (result.success) {
+            alert('📄 Relatório de faltas exportado em PDF!');
+          } else {
+            alert('❌ Erro ao exportar PDF');
+          }
+          break;
+          
+        case 'csv':
+          result = await exportarFaltasCSV(faltas);
+          if (result.success) {
+            alert('📊 Relatório de faltas exportado em CSV!');
+          } else {
+            alert('❌ Erro ao exportar CSV');
+          }
+          break;
+          
+        default:
+          alert(`Formato ${formato} não suportado`);
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      alert(`❌ Erro ao exportar ${formato.toUpperCase()}`);
     }
   };
 
